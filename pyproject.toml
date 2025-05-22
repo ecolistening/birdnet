@@ -1,14 +1,16 @@
 [project]
-name = "birdnet-predictions"
+name = "birdnet_multiprocessing"
 version = "0.1.0"
-description = "Add your description here"
+description = "function to process files and yield results using BirdNet-Analyzer"
 readme = "README.md"
 requires-python = ">=3.10.13"
+packages=[{ include="birdnet_multiprocessing" }]
 dependencies = [
     "birdnetlib>=0.18.0",
     "librosa>=0.11.0",
     "pandas>=2.2.3",
     "pyarrow>=20.0.0",
+    "pytest>=8.3.5",
     "tensorflow==2.15.1",
     "tqdm>=4.67.1",
 ]
