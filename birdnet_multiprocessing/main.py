@@ -60,7 +60,7 @@ def _species_presence_probs(
 def batch_process_files(items: List[Input]):
     return [_species_presence_probs(analyzer, **item) for item in items]
 
-def process_file(item):
+def process_file(item: Input):
     global analyzer
     return _species_presence_probs(analyzer, **item)
 
