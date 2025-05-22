@@ -34,14 +34,21 @@ def init_worker():
     with suppress_output():
         analyzer = Analyzer()
 
-def process_audio_file_with_birdnet(
+def species_presence_probs(
     file_path: str,
-    latitude: float,
-    longitude: float,
-    date: dt.datetime,
+    **kwargs: Any,
 ) -> Tuple[str, Output]:
-    global analyzer
-    recording = Recording(analyzer, str(file_path), lat=latitude, lon=longitude, date=date)
+    analyzer = Analyzer()
+    return _species_presence_probs(analyzer, file_path, **kwargs)
+
+def _species_presence_probs(
+    analyzer: Analyzer,
+    file_path: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    **kwargs: Any,
+) -> Tuple[str, Output]:
+    recording = Recording(analyzer, str(file_path), lat=latitude, lon=longitude, **kwargs)
     with suppress_output():
         recording.analyze()
     collection = defaultdict(float)
@@ -50,16 +57,25 @@ def process_audio_file_with_birdnet(
         collection[species_name] = max(collection[species_name], detection["confidence"])
     return file_path, collection
 
-def process_files(items: List[Input]):
-    return [process_audio_file_with_birdnet(**item) for item in items]
+def batch_process_files(items: List[Input]):
+    return [_species_presence_probs(analyzer, **item) for item in items]
 
-def process_audio_files_with_birdnet_mp(
+def process_file(item):
+    global analyzer
+    return _species_presence_probs(analyzer, **item)
+
+def species_presence_probs_multiprocessing(
     inputs: List[Input],
     num_workers: int
 ) -> List[Output]:
+    batch_process = isinstance(inputs[0], list)
+    fn = batch_process_files if batch_process else process_file
     with mp.Pool(processes=num_workers, initializer=init_worker) as map_pool:
         with tqdm(total=len(inputs), desc="Analysing...") as pbar:
-            for results in map_pool.imap_unordered(process_files, inputs):
-                for result in results:
-                    yield result
+            for results in map_pool.imap_unordered(fn, inputs):
+                if batch_process:
+                    for result in results:
+                        yield result
+                else:
+                    yield results
                 pbar.update(1)
