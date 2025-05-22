@@ -1,7 +1,7 @@
 [project]
 name = "birdnet_multiprocessing"
 version = "0.1.0"
-description = "function to process files and yield results using BirdNet-Analyzer"
+description = "Wrapper around birdnetlib to handle multiprocessing"
 readme = "README.md"
 requires-python = ">=3.10.13"
 packages=[{ include="birdnet_multiprocessing" }]
