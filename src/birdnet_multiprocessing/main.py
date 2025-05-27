@@ -6,7 +6,6 @@ import pandas as pd
 
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
-from collections import defaultdict
 from tqdm import tqdm
 
 from typing import (
@@ -23,11 +22,6 @@ from birdnet_multiprocessing.utils import chunked, suppress_output
 Input = Dict[str, float | dt.datetime]
 Output = Dict[str | pathlib.Path, Dict[str, float]]
 
-__ALL__ = [
-    "process_audio_file_with_birdnet",
-    "process_audio_files_with_birdnet_mp",
-]
-
 analyzer = None
 def init_worker():
     global analyzer
@@ -41,44 +35,53 @@ def species_probs(
     analyzer = Analyzer()
     return _species_probs(analyzer, file_path, **kwargs)
 
+@suppress_output()
 def _species_probs(
     analyzer: Analyzer,
-    file_path: str,
-    latitude: float | None = None,
-    longitude: float | None = None,
+    data: pd.Series,
     **kwargs: Any,
 ) -> pd.DataFrame:
-    recording = Recording(analyzer, str(file_path), lat=latitude, lon=longitude, **kwargs)
-    with suppress_output():
-        recording.analyze()
-    collection = defaultdict(float)
+    recording = Recording(
+        analyzer,
+        str(data.file_path),
+        lat=data.latitude,
+        lon=data.longitude,
+        date=data.timestamp.date(),
+        **kwargs,
+    )
+    recording.analyze()
     df = pd.DataFrame(recording.detections)
-    df["file_path"] = file_path
-    if latitude is not None:
-        df["latitude"] = latitude
-    if longitude is not None:
-        df["longitude"] = longitude
     return df
 
-def batch_process_files(items: List[Input]) -> pd.DataFrame:
-    return [_species_probs(analyzer, **item) for item in items]
+def batch_process_files(df: pd.DataFrame) -> pd.DataFrame:
+    return [_species_probs(analyzer, row) for i, row in df.iterrows()]
 
-def process_file(item: Input) -> pd.DataFrame:
+def process_file(row: pd.Series) -> pd.DataFrame:
     global analyzer
-    return _species_probs(analyzer, **item)
+    return _species_probs(analyzer, row)
 
 def species_probs_multiprocessing(
-    inputs: List[Input],
-    num_workers: int
+    df: pd.DataFrame,
+    num_workers: int,
+    batch_size: int = 0,
 ) -> List[Output]:
-    batch_process = isinstance(inputs[0], list)
-    fn = batch_process_files if batch_process else process_file
+    total = len(df)
+    batched = batch_size > 1
+
+    if batched:
+        inputs = list(chunked(df, batch_size))
+        fn = batch_process_files
+    else:
+        inputs = df
+        fn = process_file
+
     with mp.Pool(processes=num_workers, initializer=init_worker) as map_pool:
-        with tqdm(total=len(inputs), desc="Analysing...") as pbar:
+        with tqdm(total=total, desc="Analysing...") as pbar:
             for results in map_pool.imap_unordered(fn, inputs):
-                if batch_process:
+                if batched:
                     for result in results:
                         yield result
+                        pbar.update(1)
                 else:
                     yield results
-                pbar.update(1)
+                    pbar.update(1)
