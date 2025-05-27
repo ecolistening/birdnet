@@ -37,7 +37,7 @@ def init_worker():
 def species_presence_probs(
     file_path: str,
     **kwargs: Any,
-) -> Tuple[str, Output]:
+) -> pd.DataFrame:
     analyzer = Analyzer()
     return _species_presence_probs(analyzer, file_path, **kwargs)
 
@@ -47,20 +47,23 @@ def _species_presence_probs(
     latitude: float | None = None,
     longitude: float | None = None,
     **kwargs: Any,
-) -> Tuple[str, Output]:
+) -> pd.DataFrame:
     recording = Recording(analyzer, str(file_path), lat=latitude, lon=longitude, **kwargs)
     with suppress_output():
         recording.analyze()
     collection = defaultdict(float)
-    for detection in recording.detections:
-        species_name = detection["scientific_name"]
-        collection[species_name] = max(collection[species_name], detection["confidence"])
-    return file_path, collection
+    df = pd.DataFrame(recording.detections)
+    df["file_path"] = file_path
+    if latitude is not None:
+        df["latitude"] = latitude
+    if longitude is not None:
+        df["longitude"] = longitude
+    return df
 
-def batch_process_files(items: List[Input]):
+def batch_process_files(items: List[Input]) -> pd.DataFrame:
     return [_species_presence_probs(analyzer, **item) for item in items]
 
-def process_file(item: Input):
+def process_file(item: Input) -> pd.DataFrame:
     global analyzer
     return _species_presence_probs(analyzer, **item)
 
