@@ -1,12 +1,15 @@
 import argparse
+import dask
+import dask.dataframe as dd
 import datetime as dt
-import multiprocessing as mp
 import pathlib
 import pandas as pd
+import logging
 
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
 from collections import defaultdict
+from dask.distributed import Client, LocalCluster
 from tqdm import tqdm
 
 from typing import (
@@ -18,67 +21,65 @@ from typing import (
     Tuple,
 )
 
-from birdnet_multiprocessing.utils import chunked, suppress_output
+from birdnet_multiprocessing.analyzer import get_analyzer
+from birdnet_multiprocessing.utils import suppress_output
 
-Input = Dict[str, float | dt.datetime]
-Output = Dict[str | pathlib.Path, Dict[str, float]]
-
-__ALL__ = [
-    "process_audio_file_with_birdnet",
-    "process_audio_files_with_birdnet_mp",
-]
-
-analyzer = None
-def init_worker():
-    global analyzer
-    with suppress_output():
-        analyzer = Analyzer()
+def birdnet_column_metadata():
+    return pd.DataFrame({
+        "file_path": pd.Series(dtype="object"),
+        "common_name": pd.Series(dtype="object"),
+        "scientific_name": pd.Series(dtype="object"),
+        "label": pd.Series(dtype="object"),
+        "confidence": pd.Series(dtype="float64"),
+        "start_time": pd.Series(dtype="float64"),
+        "end_time": pd.Series(dtype="float64"),
+    })
 
 def species_presence_probs(
-    file_path: str,
+    df: pd.DataFrame,
+    analyzer_kwargs: Dict,
     **kwargs: Any,
 ) -> pd.DataFrame:
+    columns = birdnet_column_metadata().columns
+    analyzer = get_analyzer(**analyzer_kwargs)
+    results = []
+    for i, file_info in df.iterrows():
+        recording = Recording(
+            analyzer,
+            file_info.file_path,
+            lat=file_info.latitude,
+            lon=file_info.longitude,
+            date=file_info.timestamp.date(),
+            **kwargs,
+        )
+        with suppress_output():
+            recording.analyze()
+        result_df = pd.DataFrame(recording.detections)
+        result_df["file_path"] = file_info.file_path
+        results.append(result_df)
+    if results:
+        return pd.concat(results, axis=0)[columns]
+    else:
+        return pd.DataFrame(columns=columns)
+
+def species_presence_probs_multiprocessing(df: pd.DataFrame, num_partitions: int = 4):
+    client = Client()
+
     analyzer = Analyzer()
-    return _species_presence_probs(analyzer, file_path, **kwargs)
+    analyzer_kwargs = dict(
+        classifier_labels_path=analyzer.classifier_labels_path,
+        classifier_model_path=analyzer.classifier_model_path,
+    )
 
-def _species_presence_probs(
-    analyzer: Analyzer,
-    file_path: str,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    **kwargs: Any,
-) -> pd.DataFrame:
-    recording = Recording(analyzer, str(file_path), lat=latitude, lon=longitude, **kwargs)
-    with suppress_output():
-        recording.analyze()
-    collection = defaultdict(float)
-    df = pd.DataFrame(recording.detections)
-    df["file_path"] = file_path
-    if latitude is not None:
-        df["latitude"] = latitude
-    if longitude is not None:
-        df["longitude"] = longitude
-    return df
+    result_df = (
+        dd.from_pandas(df.reset_index(drop=True), npartitions=num_partitions)
+        .map_partitions(
+            species_presence_probs,
+            analyzer_kwargs=analyzer_kwargs,
+            meta=birdnet_column_metadata()
+        )
+    ).compute()
 
-def batch_process_files(items: List[Input]) -> pd.DataFrame:
-    return [_species_presence_probs(analyzer, **item) for item in items]
+    client.close()
 
-def process_file(item: Input) -> pd.DataFrame:
-    global analyzer
-    return _species_presence_probs(analyzer, **item)
-
-def species_presence_probs_multiprocessing(
-    inputs: List[Input],
-    num_workers: int
-) -> List[Output]:
-    batch_process = isinstance(inputs[0], list)
-    fn = batch_process_files if batch_process else process_file
-    with mp.Pool(processes=num_workers, initializer=init_worker) as map_pool:
-        with tqdm(total=len(inputs), desc="Analysing...") as pbar:
-            for results in map_pool.imap_unordered(fn, inputs):
-                if batch_process:
-                    for result in results:
-                        yield result
-                else:
-                    yield results
-                pbar.update(1)
+    return result_df

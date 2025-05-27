@@ -7,6 +7,7 @@ requires-python = ">=3.10.13"
 packages=[{ include="birdnet_multiprocessing" }]
 dependencies = [
     "birdnetlib>=0.18.0",
+    "dask[distributed]>=2025.5.1",
     "librosa>=0.11.0",
     "pandas>=2.2.3",
     "pyarrow>=20.0.0",
