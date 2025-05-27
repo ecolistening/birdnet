@@ -34,14 +34,14 @@ def init_worker():
     with suppress_output():
         analyzer = Analyzer()
 
-def species_presence_probs(
+def species_probs(
     file_path: str,
     **kwargs: Any,
 ) -> pd.DataFrame:
     analyzer = Analyzer()
-    return _species_presence_probs(analyzer, file_path, **kwargs)
+    return _species_probs(analyzer, file_path, **kwargs)
 
-def _species_presence_probs(
+def _species_probs(
     analyzer: Analyzer,
     file_path: str,
     latitude: float | None = None,
@@ -61,13 +61,13 @@ def _species_presence_probs(
     return df
 
 def batch_process_files(items: List[Input]) -> pd.DataFrame:
-    return [_species_presence_probs(analyzer, **item) for item in items]
+    return [_species_probs(analyzer, **item) for item in items]
 
 def process_file(item: Input) -> pd.DataFrame:
     global analyzer
-    return _species_presence_probs(analyzer, **item)
+    return _species_probs(analyzer, **item)
 
-def species_presence_probs_multiprocessing(
+def species_probs_multiprocessing(
     inputs: List[Input],
     num_workers: int
 ) -> List[Output]:
