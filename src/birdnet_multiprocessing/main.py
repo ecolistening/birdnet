@@ -1,8 +1,8 @@
 import argparse
-import datetime as dt
 import multiprocessing as mp
 import pathlib
 import pandas as pd
+import logging
 
 from birdnetlib import Recording
 from birdnetlib.analyzer import Analyzer
@@ -19,8 +19,8 @@ from typing import (
 
 from birdnet_multiprocessing.utils import chunked, suppress_output
 
-Input = Dict[str, float | dt.datetime]
-Output = Dict[str | pathlib.Path, Dict[str, float]]
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 analyzer = None
 def init_worker():
@@ -51,6 +51,7 @@ def _species_probs(
     )
     recording.analyze()
     df = pd.DataFrame(recording.detections)
+    df["file_path"] = data.file_path
     return df
 
 def batch_process_files(df: pd.DataFrame) -> pd.DataFrame:
@@ -64,7 +65,7 @@ def species_probs_multiprocessing(
     df: pd.DataFrame,
     num_workers: int,
     batch_size: int = 0,
-) -> List[Output]:
+) -> Iterable[pd.Series]:
     total = len(df)
     batched = batch_size > 1
 

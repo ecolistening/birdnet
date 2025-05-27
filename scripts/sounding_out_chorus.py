@@ -21,7 +21,8 @@ def main(
     df = pd.read_parquet(audio_dir / "metadata.parquet")
     df["file_path"] = df["file_name"].map(lambda file_name: audio_dir / "data" / file_name)
     columns = ["file_path", "latitude", "longitude", "timestamp"]
-    results_df = pd.concat(list(species_probs_multiprocessing(df[columns], num_workers=num_workers, batch_size=batch_size)), axis=0)
+    results_df = pd.concat(list(species_probs_multiprocessing(df[columns].iloc[:64], num_workers=num_workers, batch_size=batch_size)), axis=0)
+    results_df["species_name"] = results_df["common_name"] + results_df["scientific_name"]
     # attach missing file names and pivot
     if save_dir is not None:
         df.to_parquet(save_dir / "birdnet_predictions.parquet")
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=32,
+        default=6,
         help='Batch size (audio files per worker)',
     )
     main(**vars(parser.parse_args()))
