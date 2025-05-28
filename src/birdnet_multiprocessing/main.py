@@ -103,7 +103,7 @@ def embeddings_multiprocessing(
 def handle_processing(fn: Callable, inputs: Iterable):
     _init_worker()
     log.info("Synchronous processing")
-    return map(functools.partial(fn, **kwargs), inputs)
+    return map(fn, inputs)
 
 def handle_multiprocessing(fn: Callable, inputs: Iterable, **kwargs: Any):
     log.info("Concurrent processing")
