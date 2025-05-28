@@ -33,3 +33,18 @@ Extract both embeddings and species (note that embeddings are padded with zero s
 ```sh
 PYTHONPATH=src python -m scripts.sounding_out_chorus all --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
 ```
+
+## Using Singularity / Apptainer
+
+First build the container
+
+```
+singularity build --fakeroot container.sif apptainerfile.def
+
+```
+
+Run the main script
+```
+$DATA_PATH=/path/to/your/data
+singularity run -B $DATA_PATH:/data ./container.sif
+```
