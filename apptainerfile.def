@@ -1,0 +1,25 @@
+Bootstrap: localimage
+From: python:3.10-slim
+
+%environment
+    export DATA_PATH=/data
+
+%files
+    uv.lock /code/uv.lock
+    pyproject.toml /code/pyproject.toml
+    src /code/src
+    scripts /code/scripts
+    README.md /code/README.md
+
+%post
+    apt-get update
+    apt-get install curl -y
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    mkdir /writeable
+
+    cd /code
+    UV_PROJECT_ENVIRONMENT=/writeable/.venv uv sync --no-cache
+
+%runscript
+    cd /code
+    uv --no-cache run $1
