@@ -3,6 +3,7 @@ From: python:3.10-slim
 
 %environment
     export DATA_PATH=/data
+    export PATH=/root/.local/bin:$PATH
 
 %files
     uv.lock /code/uv.lock
@@ -32,4 +33,4 @@ From: python:3.10-slim
 %labels
     Author Kieran Gibb
     Version 1.0
-    Description "Run BirdNetLib on a directory"
+    Description "Run birdnetlib on files specified by an index parquet file"
