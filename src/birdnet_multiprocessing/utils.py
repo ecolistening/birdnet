@@ -2,7 +2,7 @@ import contextlib
 import os
 import sys
 
-from typing import Any, List
+from typing import Any, List, Callable
 
 @contextlib.contextmanager
 def suppress_output():
@@ -13,3 +13,9 @@ def suppress_output():
 def chunked(items: List[Any], batch_size: int):
     for i in range(0, len(items), batch_size):
         yield items.iloc[i:i + batch_size]
+
+def try_or(func: Callable, default: Any) -> Any:
+    try:
+        return func()
+    except Exception as e:
+        return default

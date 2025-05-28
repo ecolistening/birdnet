@@ -1,4 +1,5 @@
 import argparse
+import functools
 import multiprocessing as mp
 import pathlib
 import pandas as pd
@@ -17,26 +18,111 @@ from typing import (
     Tuple,
 )
 
-from birdnet_multiprocessing.utils import chunked, suppress_output
+from birdnet_multiprocessing.utils import chunked, suppress_output, try_or
+
+__ALL__ = [
+    "species_probs",
+    "species_probs_multiprocessing",
+    "embeddings",
+    "embeddings_multiprocessing",
+]
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
-
-analyzer = None
-def init_worker():
-    global analyzer
-    with suppress_output():
-        analyzer = Analyzer()
 
 def species_probs(
     file_path: str,
     **kwargs: Any,
 ) -> pd.DataFrame:
     analyzer = Analyzer()
-    return _species_probs(analyzer, file_path, **kwargs)
+    return _species_probs_as_df(analyzer, file_path, **kwargs)
 
+def species_probs_multiprocessing(
+    df: pd.DataFrame,
+    num_workers: int,
+    batch_size: int = 1,
+    sync: bool = False,
+    **kwargs: Any,
+) -> Iterable[pd.Series]:
+    total = len(df)
+    batched = batch_size > 1
+
+    if batched:
+        inputs = list(chunked(df, batch_size))
+        fn = _batch_species_probs_from_audio_files
+    else:
+        inputs = df.iterrows()
+        fn = _species_probs_from_audio_file
+
+    with tqdm(total=total, desc="Analysing...") as pbar:
+        if sync:
+            for results in handle_processing(functools.partial(fn, **kwargs), inputs):
+                yield results
+                pbar.update(batch_size)
+        else:
+            pool_kwargs = dict(processes=num_workers, initializer=_init_worker)
+            for results in handle_multiprocessing(functools.partial(fn, **kwargs), inputs, **pool_kwargs):
+                yield results
+                pbar.update(batch_size)
+
+def embeddings(
+    file_path: str,
+    **kwargs: Any,
+) -> pd.DataFrame:
+    analyzer = Analyzer()
+    return _embed_as_df(analyzer, file_path, **kwargs)
+
+def embeddings_multiprocessing(
+    df: pd.DataFrame,
+    num_workers: int,
+    batch_size: int = 1,
+    sync: bool = False,
+    **kwargs: Any,
+) -> Iterable[pd.Series]:
+    total = len(df)
+    batched = batch_size > 1
+
+    if batched:
+        inputs = list(chunked(df, batch_size))
+        fn = _batch_embed_audio_files
+    else:
+        inputs = df.iterrows()
+        fn = _embed_audio_file
+
+    with tqdm(total=total, desc="Analysing...") as pbar:
+        if sync:
+            for results in handle_processing(functools.partial(fn, **kwargs), inputs):
+                yield results
+                pbar.update(batch_size)
+        else:
+            pool_kwargs = dict(processes=num_workers, initializer=_init_worker)
+            for results in handle_multiprocessing(functools.partial(fn, **kwargs), inputs, **pool_kwargs):
+                yield results
+                pbar.update(batch_size)
+
+def handle_processing(fn: Callable, inputs: Iterable):
+    _init_worker()
+    log.info("Synchronous processing")
+    return map(functools.partial(fn, **kwargs), inputs)
+
+def handle_multiprocessing(fn: Callable, inputs: Iterable, **kwargs: Any):
+    log.info("Concurrent processing")
+    with mp.Pool(**kwargs) as map_pool:
+        for results in map_pool.imap_unordered(fn, inputs):
+            yield results
+
+# --------------------------------------------------------------- #
+
+analyzer = None
 @suppress_output()
-def _species_probs(
+def _init_worker():
+    """
+    Instantiate a single analyzer on each worker, cached globally.
+    """
+    global analyzer
+    analyzer = Analyzer()
+
+def _species_probs_as_df(
     analyzer: Analyzer,
     data: pd.Series,
     **kwargs: Any,
@@ -44,45 +130,54 @@ def _species_probs(
     recording = Recording(
         analyzer,
         str(data.file_path),
-        lat=data.latitude,
-        lon=data.longitude,
-        date=data.timestamp.date(),
+        lat=data.get("latitude"),
+        lon=data.get("longitude"),
+        date=try_or(lambda: data.get("timestamp", None).date(), None),
         **kwargs,
     )
-    recording.analyze()
+    with suppress_output():
+        recording.analyze()
     df = pd.DataFrame(recording.detections)
-    df["file_path"] = data.file_path
+    df["file_path"] = str(data.file_path)
     return df
 
-def batch_process_files(df: pd.DataFrame) -> pd.DataFrame:
-    return [_species_probs(analyzer, row) for i, row in df.iterrows()]
+def _batch_species_probs_from_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    return pd.concat([_species_probs_as_df(analyzer, row) for i, row in df.iterrows()], axis=0)
 
-def process_file(row: pd.Series) -> pd.DataFrame:
+def _species_probs_from_audio_file(item: Tuple[int, pd.Series], **kwargs: Any) -> pd.DataFrame:
     global analyzer
-    return _species_probs(analyzer, row)
+    i, row = item
+    return _species_probs_as_df(analyzer, row, **kwargs)
 
-def species_probs_multiprocessing(
-    df: pd.DataFrame,
-    num_workers: int,
-    batch_size: int = 0,
-) -> Iterable[pd.Series]:
-    total = len(df)
-    batched = batch_size > 1
+def _embed_as_df(
+    analyzer: Analyzer,
+    data: pd.Series,
+    **kwargs: Any,
+) -> pd.DataFrame:
+    recording = Recording(
+        analyzer,
+        str(data.file_path),
+        lat=data.get("latitude"),
+        lon=data.get("longitude"),
+        date=try_or(lambda: data.get("timestamp", None).date(), None),
+        **kwargs,
+    )
+    with suppress_output():
+        recording.extract_embeddings()
+    df = pd.DataFrame([
+        pd.concat([
+            pd.Series(embedding_info["embeddings"]),
+            pd.Series({ k: v for k, v in embedding_info.items() if k != "embeddings" }),
+        ])
+        for embedding_info in recording.embeddings
+    ])
+    df["file_path"] = str(data.file_path)
+    return df
 
-    if batched:
-        inputs = list(chunked(df, batch_size))
-        fn = batch_process_files
-    else:
-        inputs = df
-        fn = process_file
+def _batch_embed_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    return pd.concat([_embed_as_df(analyzer, row) for i, row in df.iterrows()], axis=0)
 
-    with mp.Pool(processes=num_workers, initializer=init_worker) as map_pool:
-        with tqdm(total=total, desc="Analysing...") as pbar:
-            for results in map_pool.imap_unordered(fn, inputs):
-                if batched:
-                    for result in results:
-                        yield result
-                        pbar.update(1)
-                else:
-                    yield results
-                    pbar.update(1)
+def _embed_audio_file(item: Tuple[int, pd.Series], **kwargs: Any) -> pd.DataFrame:
+    global analyzer
+    i, row = item
+    return _embed_as_df(analyzer, row, **kwargs)
