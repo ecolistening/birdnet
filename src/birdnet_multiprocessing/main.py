@@ -265,7 +265,7 @@ def _embeddings_and_species_probs_as_df(
     df._consolidate_inplace()
     # assign primary key
     df["file_path"] = str(data.file_path)
-    return df
+    return df.reset_index()
 
 def _batch_embeddings_and_species_probs_from_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
     return pd.concat([
