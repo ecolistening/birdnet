@@ -1,4 +1,4 @@
-Bootstrap: localimage
+BootStrap: docker
 From: python:3.10-slim
 
 %environment
@@ -12,10 +12,15 @@ From: python:3.10-slim
     README.md /code/README.md
 
 %post
+    export PATH=/root/.local/bin:$PATH
     apt-get update
-    apt-get install curl -y
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    apt-get install --no-install-recommends curl -y
+    mkdir /cargo
+    curl -LsSf https://astral.sh/uv/install.sh | CARGO_HOME=/cargo sh
     mkdir /writeable
+
+    # Add to bin to path
+    echo "export PATH=/cargo/bin:\$PATH" >> $APPTAINER_ENVIRONMENT
 
     cd /code
     UV_PROJECT_ENVIRONMENT=/writeable/.venv uv sync --no-cache
@@ -23,3 +28,8 @@ From: python:3.10-slim
 %runscript
     cd /code
     uv --no-cache run $1
+
+%labels
+    Author Kieran Gibb
+    Version 1.0
+    Description "Run BirdNetLib on a directory"
