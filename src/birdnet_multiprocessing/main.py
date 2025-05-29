@@ -166,7 +166,7 @@ def _species_probs_as_df(
         str(data.file_path),
         lat=data.get("latitude"),
         lon=data.get("longitude"),
-        date=try_or(lambda: data.get("timestamp", None).date(), None),
+        date=ts.date() if pd.notnull(ts := data.get("timestamp")) else None,
         **kwargs,
     )
     with suppress_output():
@@ -194,7 +194,7 @@ def _embed_as_df(
         str(data.file_path),
         lat=data.get("latitude"),
         lon=data.get("longitude"),
-        date=try_or(lambda: data.get("timestamp", None).date(), None),
+        date=ts.date() if pd.notnull(ts := data.get("timestamp")) else None,
         **kwargs,
     )
     with suppress_output():
@@ -228,7 +228,7 @@ def _embeddings_and_species_probs_as_df(
         str(data.file_path),
         lat=data.get("latitude"),
         lon=data.get("longitude"),
-        date=try_or(lambda: data.get("timestamp", None).date(), None),
+        date=ts.date() if pd.notnull(ts := data.get("timestamp")) else None,
         **kwargs,
     )
     with suppress_output():

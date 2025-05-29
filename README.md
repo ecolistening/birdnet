@@ -21,9 +21,9 @@ python main.py build-file-index --audio-dir=/path/to/audio/root/directory \
 > **NB**: Location and date information not yet supported in this function. You can however provide your own index as long as it adheres to the following column requirements
 > 1. `uuid` string specifies a unique identifier for each file
 > 2. `file_path` string relative to the specified root of all the audio files `--audio-dir`
-> 3. `latitude` float (or padded with `NaN`)
-> 4. `longitude` float (or padded with `NaN`)
-> 5. `timestamp` datetime (or padded with `NaN`)
+> 3. `latitude` float (or padded with `nan`)
+> 4. `longitude` float (or padded with `nan`)
+> 5. `timestamp` datetime (or padded with `nan`)
 
 Extract species probabilities for each file:
 ```sh

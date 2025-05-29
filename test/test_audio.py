@@ -80,7 +80,7 @@ def test_species_probs_from_audio_with_metadata_multiprocessing(audio_dir):
     if (audio_dir / "metadata.parquet").exists():
         metadata = ds.dataset(audio_dir / "metadata.parquet").scanner().head(10).to_pandas()
         metadata["file_path"] = metadata["file_path"].map(lambda file_path: str(audio_dir / file_path))
-        metadata["timestamp"] = metadata.apply(lambda x: random_datetime(), axis=1)
+        metadata["timestamp"] = metadata.apply(lambda x: random_datetime() if np.random.rand() > 0.1 else np.nan, axis=1)
         metadata["latitude"] = np.where(np.random.rand(len(metadata)) < 0.1, np.nan, np.random.uniform(-90, 90, len(metadata)))
         metadata["longitude"] = np.where(np.random.rand(len(metadata)) < 0.1, np.nan, np.random.uniform(-180, 180, len(metadata)))
         inputs = metadata[["file_path", "latitude", "longitude", "timestamp"]]
@@ -95,7 +95,7 @@ def test_batch_species_probs_from_audio_with_metadata_multiprocessing(audio_dir)
     if (audio_dir / "metadata.parquet").exists():
         metadata = ds.dataset(audio_dir / "metadata.parquet").scanner().head(10).to_pandas()
         metadata["file_path"] = metadata["file_path"].map(lambda file_path: str(audio_dir / file_path))
-        metadata["timestamp"] = metadata.apply(lambda x: random_datetime(), axis=1)
+        metadata["timestamp"] = metadata.apply(lambda x: random_datetime() if np.random.rand() > 0.1 else np.nan, axis=1)
         metadata["latitude"] = np.where(np.random.rand(len(metadata)) < 0.1, np.nan, np.random.uniform(-90, 90, len(metadata)))
         metadata["longitude"] = np.where(np.random.rand(len(metadata)) < 0.1, np.nan, np.random.uniform(-180, 180, len(metadata)))
         inputs = metadata[["file_path", "latitude", "longitude", "timestamp"]]
