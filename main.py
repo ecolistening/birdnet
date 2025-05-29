@@ -33,7 +33,9 @@ def validate_columns(columns):
 
 # --------------------------------------------------------------------------------------------- #
 
-@click.command()
+@click.command(
+    help="Assign UUIDs to a file index, or build from scratch"
+)
 @click.option(
     "--audio-dir",
     required=True,
@@ -49,16 +51,41 @@ def build_file_index(
     audio_dir: pathlib.Path,
     index_file_name: str,
 ) -> None:
-    df = pd.DataFrame([
-        dict(file_path=str(file_path), uuid=str(uuid.uuid4()), file_name=file_path.name)
-        for file_path in pathlib.Path(audio_dir).rglob('*.wav')
-        if AUDIO_FILE_REGEX.match(str(file_path))
-    ])
+    """
+    This command either:
+
+    (1) Builds a file index referencing all files within sub-folders of --audio-dir with a UUID.
+
+    (2) In the case where a specified file index already exists, it checks file_path is available
+        when it is not, it defaults to (1), otherwise it appends a UUID
+
+    Example:
+        python main.py build_file_index --audio-dir=/path/to/audio/dir --index-file-name=metadata.parquet
+    """
+    def fetch_file_index():
+        return pd.DataFrame([
+            dict(file_path=str(file_path), uuid=str(uuid.uuid4()), file_name=file_path.name)
+            for file_path in pathlib.Path(audio_dir).rglob('*.wav')
+            if AUDIO_FILE_REGEX.match(str(file_path))
+        ])
+
+    if (audio_dir / index_file_name).exists():
+        df = load_metadata_file(str(audio_dir / index_file_name))
+        if "file_path" not in df.columns:
+            df = fetch_file_index()
+        else:
+            assert "uuid" not in df.columns, "'uuid' already assigned to file index, exiting..."
+            df["uuid"] = [uuid.uuid4() for i in range(len(df))]
+    else:
+        df = fetch_file_index()
+
     save_metadata_file(df, audio_dir / index_file_name)
 
 # --------------------------------------------------------------------------------------------- #
 
-@click.command()
+@click.command(
+    help="Extract species probabilities using BirdNET"
+)
 @click.option(
     "--audio-dir",
     required=True,
@@ -104,6 +131,19 @@ def species_probs(
     batch_size: int,
     **kwargs: Any,
 ) -> None:
+    """
+    This command extracts all species probabilities from audio files referenced in
+    the file index file saved at the root of --audio-dir. Results are persisted as a
+    parquet file in the specified --save-dir directory.
+
+    Example:
+        python main.py species-probs --audio-dir=/path/to/audio/dir \
+                                     --index-file-name=metadata.parquet \
+                                     --save-dir=/path/to/saved/results \
+
+    Note: Only persists species detections, does not contain references to
+          files where no species were detected
+    """
     start_time = time.time()
 
     df = load_metadata_file(str(audio_dir / index_file_name))
@@ -134,7 +174,9 @@ def species_probs(
 
 # --------------------------------------------------------------------------------------------- #
 
-@click.command()
+@click.command(
+    help="Embed audio features using BirdNET"
+)
 @click.option(
     "--audio-dir",
     required=True,
@@ -173,6 +215,16 @@ def embed(
     batch_size: int,
     **kwargs: Any,
 ) -> None:
+    """
+    This command extracts BirdNET model embeddings from audio files referenced in
+    the file index file saved at the root of --audio-dir. Results are persisted as a
+    parquet file in the specified --save-dir directory.
+
+    Example:
+        python main.py embed --audio-dir=/path/to/audio/dir \
+                             --index-file-name=metadata.parquet \
+                             --save-dir=/path/to/saved/results
+    """
     start_time = time.time()
 
     df = load_metadata_file(str(audio_dir / index_file_name))
@@ -203,7 +255,9 @@ def embed(
 
 # --------------------------------------------------------------------------------------------- #
 
-@click.command()
+@click.command(
+    help="Embed audio features and fetch species probabilities using BirdNET"
+)
 @click.option(
     "--audio-dir",
     required=True,
@@ -249,6 +303,19 @@ def embeddings_and_species_probs(
     batch_size: int,
     **kwargs: Any,
 ) -> None:
+    """
+    This command extracts both embeddings and species probabilities from audio files
+    referenced in the file index file saved at the root of --audio-dir. Results are
+    persisted as a parquet file in the specified --save-dir directory.
+
+    Example:
+        python main.py species-probs --audio-dir=/path/to/audio/dir \
+                                     --index-file-name=metadata.parquet \
+                                     --save-dir=/path/to/saved/results \
+
+    Note: Embeddings are extracted for each 3s audio window, and species
+          detections including presence and absences are persisted
+    """
     start_time = time.time()
 
     df = load_metadata_file(str(audio_dir / index_file_name))
@@ -281,7 +348,9 @@ def embeddings_and_species_probs(
 
 # --------------------------------------------------------------------------------------------- #
 
-@click.group()
+@click.group(
+    help="Simple multiprocessing of audio using BirdNET"
+)
 def cli():
     pass
 
