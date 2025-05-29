@@ -1,10 +1,12 @@
 import datetime as dt
+import itertools
 import pandas as pd
 import pathlib
 import pytest
 import numpy as np
 import random
 import warnings
+import pyarrow.dataset as ds
 
 from typing import Iterable
 
@@ -63,9 +65,11 @@ def test_species_probs_from_audio_with_metadata(audio_path):
 
 def test_species_probs_from_audio_multiprocessing(audio_dir):
     if audio_dir.exists():
-        inputs = pd.DataFrame([dict(file_path=file_path) for file_path in pathlib.Path(audio_dir).rglob('*.wav')])
-        num_inputs = min(len(inputs), 10)
-        pending = species_probs_multiprocessing(inputs.iloc[:num_inputs], num_workers=4)
+        inputs = pd.DataFrame([
+            dict(file_path=file_path)
+            for file_path in itertools.islice(pathlib.Path(audio_dir).rglob('*.wav'), 10)
+        ])
+        pending = species_probs_multiprocessing(inputs, num_workers=4)
         assert isinstance(pending, Iterable)
         results = list(pending)
         assert all(type(x) == pd.DataFrame for x in results)
@@ -74,14 +78,13 @@ def test_species_probs_from_audio_multiprocessing(audio_dir):
 
 def test_species_probs_from_audio_with_metadata_multiprocessing(audio_dir):
     if (audio_dir / "metadata.parquet").exists():
-        metadata = pd.read_parquet(audio_dir / "metadata.parquet")
+        metadata = ds.dataset(audio_dir / "metadata.parquet").scanner().head(10).to_pandas()
         metadata["file_path"] = metadata["file_path"].map(lambda file_path: str(audio_dir / file_path))
         metadata["timestamp"] = metadata.apply(lambda x: random_datetime(), axis=1)
         metadata["latitude"] = np.random.uniform(low=-90, high=90, size=(len(metadata)))
         metadata["latitude"] = np.random.uniform(low=-180, high=180, size=(len(metadata)))
         inputs = metadata[metadata.columns.intersection(["file_path", "latitude", "longitude", "timestamp"])]
-        num_inputs = min(len(inputs), 10)
-        pending = species_probs_multiprocessing(inputs.iloc[:num_inputs], num_workers=4)
+        pending = species_probs_multiprocessing(inputs, num_workers=4)
         assert isinstance(pending, Iterable)
         results = list(pending)
         assert all(type(x) == pd.DataFrame for x in results)
@@ -90,14 +93,13 @@ def test_species_probs_from_audio_with_metadata_multiprocessing(audio_dir):
 
 def test_batch_species_probs_from_audio_with_metadata_multiprocessing(audio_dir):
     if (audio_dir / "metadata.parquet").exists():
-        metadata = pd.read_parquet(audio_dir / "metadata.parquet")
+        metadata = ds.dataset(audio_dir / "metadata.parquet").scanner().head(10).to_pandas()
         metadata["file_path"] = metadata["file_path"].map(lambda file_path: str(audio_dir / file_path))
         metadata["timestamp"] = metadata.apply(lambda x: random_datetime(), axis=1)
         metadata["latitude"] = np.random.uniform(low=-90, high=90, size=(len(metadata)))
         metadata["latitude"] = np.random.uniform(low=-180, high=180, size=(len(metadata)))
         inputs = metadata[metadata.columns.intersection(["file_path", "latitude", "longitude", "timestamp"])]
-        num_inputs = min(len(inputs), 10)
-        pending = species_probs_multiprocessing(inputs.iloc[:num_inputs], num_workers=4, batch_size=6)
+        pending = species_probs_multiprocessing(inputs, num_workers=4, batch_size=6)
         assert isinstance(pending, Iterable)
         results = list(pending)
         assert all(type(x) == pd.DataFrame for x in results)
@@ -117,9 +119,11 @@ def test_embeddings_from_audio(audio_path):
 
 def test_embeddings_from_audio_multiprocessing(audio_dir):
     if audio_dir.exists():
-        inputs = pd.DataFrame([dict(file_path=file_path) for file_path in pathlib.Path(audio_dir).rglob('*.wav')])
-        num_inputs = min(len(inputs), 10)
-        pending = embeddings_multiprocessing(inputs.iloc[:num_inputs], num_workers=4)
+        inputs = pd.DataFrame([
+            dict(file_path=file_path)
+            for file_path in itertools.islice(pathlib.Path(audio_dir).rglob('*.wav'), 10)
+        ])
+        pending = embeddings_multiprocessing(inputs, num_workers=4)
         assert isinstance(pending, Iterable)
         results = list(pending)
         assert all(type(x) == pd.DataFrame for x in results)
