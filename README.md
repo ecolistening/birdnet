@@ -54,7 +54,7 @@ python main.py embeddings-and-species-probs --audio-dir=/path/to/audio/root/dire
 
 ---
 
-## Using Singularity/ / Apptainer
+## Using Singularity
 Build the container:
 ```sh
 singularity build --fakeroot app.sif app.def
