@@ -24,22 +24,22 @@ pytest --audio-dir=/path/to/audio/dir
 ## Scripts
 Extract species probabilities for each file:
 ```sh
-PYTHONPATH=src python -m scripts.sounding_out_chorus species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
-
+python -m scripts.sounding_out_chorus species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
 ```
 > **NB**: Files with no detected species are missing from the results
 
 Extract feature embeddings:
 ```sh
-PYTHONPATH=src python -m scripts.sounding_out_chorus embed --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
+python -m scripts.sounding_out_chorus embed --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
 ```
 > **NB**: each row in the resulting table(s) correspond to 1024 features corresponding to a 3s frame
 
 Extract both embeddings and species:
 ```sh
-PYTHONPATH=src python -m scripts.sounding_out_chorus all --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
+python -m scripts.sounding_out_chorus embeddings-and-species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
 ```
-> **NB**: Embeddings are padded with zero species probabilities for files with non-detections, so file sizes may be larger due to this passing, however this also accounts for species absence
+> **NB**: Embeddings includes all file segments, which may have no species predictions. All species are padded with zero probabilities for files with non-detections
+> Resulting file size may be larger, however this also accounts for species absence in predicted probabilities which can be useful for analyses
 
 ---
 

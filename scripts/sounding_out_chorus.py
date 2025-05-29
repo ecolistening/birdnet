@@ -5,7 +5,11 @@ import argparse
 import pathlib
 import logging
 import pandas as pd
+import sys
+
 from typing import Any
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
 from birdnet_multiprocessing.utils import read_metadata_file
 from birdnet_multiprocessing.main import (
