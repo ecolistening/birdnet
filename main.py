@@ -349,7 +349,11 @@ def embeddings_and_species_probs(
 # --------------------------------------------------------------------------------------------- #
 
 @click.group(
-    help="Simple multiprocessing of audio using BirdNET"
+    help="""
+Simple multiprocessing of audio using BirdNET
+
+Please read the README for usage instructions
+    """
 )
 def cli():
     pass
