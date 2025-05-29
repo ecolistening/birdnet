@@ -12,31 +12,42 @@ source .venv/bin/activate
 
 ---
 
-## Tests
-Run the tests
-
-```sh
-pytest --audio-dir=/path/to/audio/dir
+## Usage
+First build the file index
 ```
+python main.py build-file-index --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+                                --index-file-name=metadata.parquet
+```
+> **NB**: Location and date information not yet supported in this function. You can however provide your own index as long as it adheres to the following column requirements
+> 1. `uuid` string specifies a unique identifier for each file
+> 2. `file_path` string relative to the specified root of all the audio files `--audio-dir`
+> 3. `latitude` float (or padded with `NaN`)
+> 4. `longitude` float (or padded with `NaN`)
+> 5. `timestamp` datetime (or padded with `NaN`)
 
----
-
-## Scripts
 Extract species probabilities for each file:
 ```sh
-python -m scripts.sounding_out_chorus species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
+python main.py species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+                             --index-file-name=metadata.parquet \
+                             --batch-size=6 \
+                             --save-dir /home/m4gpie/data/
 ```
 > **NB**: Files with no detected species are missing from the results
 
 Extract feature embeddings:
 ```sh
-python -m scripts.sounding_out_chorus embed --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
+python main.py embed --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+                     --index-file-name=metadata.parquet \
+                     --batch-size=6 \
+                     --save-dir /home/m4gpie/data/
 ```
 > **NB**: each row in the resulting table(s) correspond to 1024 features corresponding to a 3s frame
 
 Extract both embeddings and species:
 ```sh
-python -m scripts.sounding_out_chorus embeddings-and-species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus --batch-size=6 --save-dir /home/m4gpie/data/
+python main.py embeddings-and-species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+                                            --index-file-name=metadata.parquet \
+                                            --batch-size=6 --save-dir /home/m4gpie/data/
 ```
 > **NB**: Embeddings includes all file segments, which may have no species predictions. All species are padded with zero probabilities for files with non-detections
 > Resulting file size may be larger, however this also accounts for species absence in predicted probabilities which can be useful for analyses
@@ -51,6 +62,15 @@ singularity build --fakeroot app.sif app.def
 
 Run the relevant script within the container:
 ```sh
-singularity run -B /path/to/your/data:/data app.sif python -m scripts.sounding_out_chorus species-probs --audio-dir=/data --batch-size=6 --save-dir=/data
+singularity run -B /path/to/your/data:/data app.sif python main.py species-probs --audio-dir=/data --batch-size=6 --save-dir=/data
 ```
 > **NB** If you want a custom save directory, you will need to specify that as a mount point
+
+---
+
+## Tests
+Run the tests
+
+```sh
+pytest --audio-dir=/path/to/audio/dir
+```

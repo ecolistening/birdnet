@@ -20,7 +20,7 @@ def try_or(func: Callable, default: Any) -> Any:
     except Exception as e:
         return default
 
-def read_metadata_file(path, **kwargs):
+def load_metadata_file(path, **kwargs):
     ext = os.path.splitext(path)[1].lower()
 
     if ext == '.csv':
@@ -35,5 +35,23 @@ def read_metadata_file(path, **kwargs):
         return pd.read_feather(path, **kwargs)
     elif ext == '.orc':
         return pd.read_orc(path, **kwargs)
+    else:
+        raise ValueError(f"Unsupported file extension: {ext}")
+
+def save_metadata_file(df, path, **kwargs):
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext == '.csv':
+        df.to_csv(path, index=False, **kwargs)
+    elif ext == '.parquet':
+        df.to_parquet(path, index=False, **kwargs)
+    elif ext in ['.xls', '.xlsx']:
+        df.to_excel(path, index=False, **kwargs)
+    elif ext == '.json':
+        df.to_json(path, **kwargs)
+    elif ext == '.feather':
+        df.to_feather(path, **kwargs)
+    elif ext == '.orc':
+        df.to_orc(path, **kwargs)
     else:
         raise ValueError(f"Unsupported file extension: {ext}")

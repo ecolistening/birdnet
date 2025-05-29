@@ -5,13 +5,15 @@ import argparse
 import pathlib
 import logging
 import pandas as pd
+import re
 import sys
+import uuid
 
 from typing import Any
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "src"))
 
-from birdnet_multiprocessing.utils import read_metadata_file
+from birdnet_multiprocessing.utils import load_metadata_file, save_metadata_file
 from birdnet_multiprocessing.main import (
     species_probs_multiprocessing,
     embeddings_multiprocessing,
@@ -20,12 +22,39 @@ from birdnet_multiprocessing.main import (
 
 BIRDNET_INPUT_COLUMNS = ["file_path", "latitude", "longitude", "timestamp"]
 
+AUDIO_FILE_REGEX = re.compile(r".*\.(wav|flac|mp3)$", re.IGNORECASE)
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 def validate_columns(columns):
     assert "file_path" in columns, "'file_path' column must be specified"
     assert "uuid" in columns, "'uuid' column specifying a unique ID for each file must be specified"
+
+# --------------------------------------------------------------------------------------------- #
+
+@click.command()
+@click.option(
+    "--audio-dir",
+    required=True,
+    type=lambda p: pathlib.Path(p),
+    help='/path/to/audio/parent/directory'
+)
+@click.option(
+    "--index-file-name",
+    default="metadata.parquet",
+    help='path relative to --audio-dir specifying the location of the saved file index. default: metadata.parquet'
+)
+def build_file_index(
+    audio_dir: pathlib.Path,
+    index_file_name: str,
+) -> None:
+    df = pd.DataFrame([
+        dict(file_path=str(file_path), uuid=str(uuid.uuid4()), file_name=file_path.name)
+        for file_path in pathlib.Path(audio_dir).rglob('*.wav')
+        if AUDIO_FILE_REGEX.match(str(file_path))
+    ])
+    save_metadata_file(df, audio_dir / index_file_name)
 
 # --------------------------------------------------------------------------------------------- #
 
@@ -77,7 +106,7 @@ def species_probs(
 ) -> None:
     start_time = time.time()
 
-    df = read_metadata_file(str(audio_dir / index_file_name))
+    df = load_metadata_file(str(audio_dir / index_file_name))
 
     validate_columns(df.columns)
 
@@ -146,7 +175,7 @@ def embed(
 ) -> None:
     start_time = time.time()
 
-    df = read_metadata_file(str(audio_dir / index_file_name))
+    df = load_metadata_file(str(audio_dir / index_file_name))
 
     validate_columns(df.columns)
 
@@ -222,7 +251,7 @@ def embeddings_and_species_probs(
 ) -> None:
     start_time = time.time()
 
-    df = read_metadata_file(str(audio_dir / index_file_name))
+    df = load_metadata_file(str(audio_dir / index_file_name))
 
     validate_columns(df.columns)
 
@@ -256,6 +285,7 @@ def embeddings_and_species_probs(
 def cli():
     pass
 
+cli.add_command(build_file_index)
 cli.add_command(species_probs)
 cli.add_command(embed)
 cli.add_command(embeddings_and_species_probs)
