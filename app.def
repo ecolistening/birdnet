@@ -4,6 +4,7 @@ From: python:3.10-slim
 %environment
     export DATA_PATH=/data
     export PATH=/root/.local/bin:$PATH
+    export PYTHONPATH=/code/src
 
 %files
     uv.lock /code/uv.lock
@@ -14,21 +15,21 @@ From: python:3.10-slim
 
 %post
     export PATH=/root/.local/bin:$PATH
+    export PYTHONPATH=/code/src
+
     apt-get update
-    apt-get install --no-install-recommends curl -y
+    apt-get install --no-install-recommends curl ffmpeg -y
+
     mkdir /cargo
     curl -LsSf https://astral.sh/uv/install.sh | CARGO_HOME=/cargo sh
-    mkdir /writeable
-
-    # Add to bin to path
     echo "export PATH=/cargo/bin:\$PATH" >> $APPTAINER_ENVIRONMENT
 
     cd /code
-    UV_PROJECT_ENVIRONMENT=/writeable/.venv uv sync --no-cache
+    UV_PROJECT_ENVIRONMENT=/tmp/.venv uv sync --no-cache
 
 %runscript
     cd /code
-    uv --no-cache run $1
+    UV_PROJECT_ENVIRONMENT=/tmp/.venv uv --no-cache run "$@"
 
 %labels
     Author Kieran Gibb
