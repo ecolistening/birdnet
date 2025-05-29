@@ -15,7 +15,7 @@ source .venv/bin/activate
 ## Usage
 First build the file index
 ```
-python main.py build-file-index --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+python main.py build-file-index --audio-dir=/path/to/audio/root/directory \
                                 --index-file-name=metadata.parquet
 ```
 > **NB**: Location and date information not yet supported in this function. You can however provide your own index as long as it adheres to the following column requirements
@@ -27,7 +27,7 @@ python main.py build-file-index --audio-dir=/home/m4gpie/data/sounding_out_choru
 
 Extract species probabilities for each file:
 ```sh
-python main.py species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+python main.py species-probs --audio-dir=/path/to/audio/root/directory \
                              --index-file-name=metadata.parquet \
                              --batch-size=6 \
                              --save-dir /home/m4gpie/data/
@@ -36,7 +36,7 @@ python main.py species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus \
 
 Extract feature embeddings:
 ```sh
-python main.py embed --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+python main.py embed --audio-dir=/path/to/audio/root/directory \
                      --index-file-name=metadata.parquet \
                      --batch-size=6 \
                      --save-dir /home/m4gpie/data/
@@ -45,7 +45,7 @@ python main.py embed --audio-dir=/home/m4gpie/data/sounding_out_chorus \
 
 Extract both embeddings and species:
 ```sh
-python main.py embeddings-and-species-probs --audio-dir=/home/m4gpie/data/sounding_out_chorus \
+python main.py embeddings-and-species-probs --audio-dir=/path/to/audio/root/directory \
                                             --index-file-name=metadata.parquet \
                                             --batch-size=6 --save-dir /home/m4gpie/data/
 ```
@@ -62,7 +62,7 @@ singularity build --fakeroot app.sif app.def
 
 Run the relevant script within the container:
 ```sh
-singularity run -B /path/to/your/data:/data app.sif python main.py species-probs --audio-dir=/data --batch-size=6 --save-dir=/data
+singularity run -B /path/to/audio/root/directory:/data app.sif python main.py species-probs --audio-dir=/data --batch-size=6 --save-dir=/data
 ```
 > **NB** If you want a custom save directory, you will need to specify that as a mount point
 
