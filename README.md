@@ -53,4 +53,4 @@ Run the relevant script within the container:
 ```sh
 singularity run -B /path/to/your/data:/data app.sif python -m scripts.sounding_out_chorus species-probs --audio-dir=/data --batch-size=6 --save-dir=/data
 ```
-Note that if you want a custom save directory, you will need to specify that as a mount point
+> **NB** If you want a custom save directory, you will need to specify that as a mount point

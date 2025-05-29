@@ -1,7 +1,6 @@
 import argparse
 import functools
 import multiprocessing as mp
-import pathlib
 import pandas as pd
 import logging
 
@@ -154,7 +153,7 @@ def handle_processing(fn: Callable, inputs: Iterable):
 def handle_multiprocessing(fn: Callable, inputs: Iterable, **kwargs: Any):
     log.info("Concurrent processing")
     with mp.Pool(**kwargs) as map_pool:
-        for results in map_pool.imap_unordered(fn, inputs):
+        for results in map_pool.imap(fn, inputs):
             yield results
 
 def _species_probs_as_df(
@@ -174,6 +173,7 @@ def _species_probs_as_df(
         recording.analyze()
     df = pd.DataFrame(recording.detections)
     df["file_path"] = str(data.file_path)
+    df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
     return df
 
 def _batch_species_probs_from_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
@@ -207,6 +207,7 @@ def _embed_as_df(
         for embedding_info in recording.embeddings
     ])
     df["file_path"] = str(data.file_path)
+    df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
     return df
 
 def _batch_embed_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
@@ -262,9 +263,11 @@ def _embeddings_and_species_probs_as_df(
         df.columns = pd.MultiIndex.from_tuples([
             *[("embedding", i) for i in df1.columns],
         ])
+    # make data contiguous
     df._consolidate_inplace()
     # assign primary key
     df["file_path"] = str(data.file_path)
+    df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
     return df.reset_index()
 
 def _batch_embeddings_and_species_probs_from_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
