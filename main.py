@@ -65,7 +65,7 @@ def build_file_index(
     def fetch_file_index():
         return pd.DataFrame([
             dict(file_path=str(file_path), uuid=str(uuid.uuid4()), file_name=file_path.name)
-            for file_path in pathlib.Path(audio_dir).rglob('*.wav')
+            for file_path in pathlib.Path(audio_dir).rglob('*')
             if AUDIO_FILE_REGEX.match(str(file_path))
         ])
 
