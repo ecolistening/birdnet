@@ -1,5 +1,5 @@
 # BirdNet Multiprocessing
-A wrapper around `birdnetlib` which has no opinion about directory structure for handling multiprocessing.
+A wrapper around `birdnetlib` which has no opinion about directory structure for handling multiprocessing. Robust to failing to load audio.
 
 ## Setup
 Setup / install dependencies
@@ -24,6 +24,8 @@ python main.py build-file-index --audio-dir=/path/to/audio/root/directory \
 > 3. `latitude` float (or padded with `nan`)
 > 4. `longitude` float (or padded with `nan`)
 > 5. `timestamp` datetime (or padded with `nan`)
+
+An index of files found to be invalid (failed to load the audio) will be saved to `audio_dir / "failed_files.parquet"`.
 
 Extract species probabilities for each file:
 ```sh
