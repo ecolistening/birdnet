@@ -7,7 +7,6 @@ import logging
 import pandas as pd
 import re
 import soundfile
-import uuid
 
 from typing import Any
 
@@ -102,7 +101,7 @@ def main(
 
     results_df = pd.concat(pending, join="outer", axis=0).fillna(0)
     results_df = results_df.merge(
-        df[["file_path", "uuid"]],
+        df[["file_path", "file_id"]],
         left_on="file_path",
         right_on="file_path",
         how="left",
