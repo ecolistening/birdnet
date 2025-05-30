@@ -7,7 +7,7 @@ import re
 import sys
 import uuid
 
-from typing import Callable
+from typing import Callable, ClassVar
 
 from scripts.dataset import Dataset, Site
 
@@ -15,8 +15,8 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 class Kilpis(Dataset):
-    _DATETIME_REGEX = re.compile(r"^(?:\b|[^0-9].*)?(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})(?:\b|[^0-9].*)?$")
-    _SITE_REGEX = re.compile(r"^([A-Z]{3}\d{5})(?:\b|[^0-9].*)?$")
+    _DATETIME_REGEX: ClassVar[re.Pattern] = re.compile(r"^(?:\b|[^0-9].*)?(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})(?:\b|[^0-9].*)?$")
+    _SITE_REGEX: ClassVar[re.Pattern] = re.compile(r"^([A-Z]{3}\d{5})(?:\b|[^0-9].*)?$")
 
     def to_datetime(self, file_name) -> Callable:
         datetime_fields = self._DATETIME_REGEX.match(file_name).groups()
@@ -61,7 +61,7 @@ class Kilpis(Dataset):
 )
 def main(audio_dir):
     dataset = Kilpis(audio_dir)
-    print(dataset.metadata.to_markdown())
+    print(dataset.metadata)
 
 if __name__ == "__main__":
     main()

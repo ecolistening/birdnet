@@ -6,7 +6,7 @@ import pandas as pd
 import re
 import sys
 
-from typing import Callable
+from typing import Callable, ClassVar
 
 from scripts.dataset import Dataset
 
@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 class Cairngorms(Dataset):
-    _FILE_NAME_TO_DATETIME_REGEX = re.compile(r"^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})(?:\b|[^0-9].*)?$")
+    _FILE_NAME_TO_DATETIME_REGEX: ClassVar[re.Pattern] = re.compile(r"^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})(?:\b|[^0-9].*)?$")
 
     def to_datetime(self, file_name) -> Callable:
         return dt.datetime(*list(map(int, self._FILE_NAME_TO_DATETIME_REGEX.match(file_name).groups()))[:6])
@@ -47,7 +47,7 @@ class Cairngorms(Dataset):
 )
 def main(audio_dir):
     Cairngorms(audio_dir)
-    print(dataset.metadata.to_markdown())
+    print(dataset.metadata)
 
 if __name__ == "__main__":
     main()
