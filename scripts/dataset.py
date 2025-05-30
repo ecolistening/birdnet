@@ -46,11 +46,11 @@ class Site(Object):
 class Dataset(Object):
     audio_dir: str | pathlib.Path
 
-    _FILE_INDEX: ClassVar[str] = "file_index.parquet"
+    _FILE_INDEX: ClassVar[str] = "files.parquet"
     _LOCATIONS_INDEX: ClassVar[str] = "locations.parquet"
 
     def __post_init__(self) -> None:
-        self.files = self._load_file_index()
+        self.files = self._load_files()
         self.metadata = self._load_metadata()
 
     @abstractmethod
@@ -61,11 +61,21 @@ class Dataset(Object):
     def to_site_name(self, file_path):
         pass
 
-    def _load_file_index(self):
+    def _load_files(self):
         if (self.audio_dir / self._FILE_INDEX).exists():
             return pd.read_parquet(self.audio_dir / self._FILE_INDEX)
-        else:
-            return self._build_file_index()
+        files = pd.DataFrame([
+            File(
+                file_path=str(file_path),
+                file_id=str(uuid.uuid4()),
+                file_name=file_path.name,
+                timestamp=self.to_datetime(file_path.name)
+            )
+            for file_path in pathlib.Path(self.audio_dir).rglob('*')
+            if AUDIO_FILE_REGEX.match(str(file_path))
+        ])
+        files.to_parquet(self.audio_dir / self._FILE_INDEX)
+        return files
 
     @abstractmethod
     def _load_locations(self, file_path):
@@ -81,17 +91,3 @@ class Dataset(Object):
             left_on="site_name",
             right_on="site_name",
         )
-
-    def _build_file_index(self):
-        files = pd.DataFrame([
-            File(
-                file_path=str(file_path),
-                file_id=str(uuid.uuid4()),
-                file_name=file_path.name,
-                timestamp=self.to_datetime(file_path.name)
-            )
-            for file_path in pathlib.Path(self.audio_dir).rglob('*')
-            if AUDIO_FILE_REGEX.match(str(file_path))
-        ])
-        files.to_parquet(self.audio_dir / self._FILE_INDEX)
-        return files
