@@ -1,4 +1,4 @@
-# BirdNet Multiprocessing
+# BirdNet
 A wrapper around `birdnetlib` which has no opinion about directory structure for handling multiprocessing. Robust to failing to load audio.
 
 ## Setup
