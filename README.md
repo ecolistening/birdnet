@@ -15,11 +15,11 @@ source .venv/bin/activate
 ## Usage
 First build the file index
 ```
-python main.py build-file-index --audio-dir=/path/to/audio/root/directory \
-                                --index-file-name=metadata.parquet
+python main.py index-files --audio-dir=/path/to/audio/root/directory \
+                           --index-file-name=metadata.parquet
 ```
 > **NB**: Location and date information not yet supported in this function. You can however provide your own index as long as it adheres to the following column requirements
-> 1. `uuid` string specifies a unique identifier for each file
+> 1. `file_id` string specifies a unique identifier for each file
 > 2. `file_path` string relative to the specified root of all the audio files `--audio-dir`
 > 3. `latitude` float (or padded with `nan`)
 > 4. `longitude` float (or padded with `nan`)
@@ -62,6 +62,11 @@ Note that the `--batch-size` flag is only for batching audio files for each work
 Build the container:
 ```sh
 singularity build --fakeroot app.sif app.def
+```
+
+Check python runs correctly within the container:
+```
+singularity run app.sif uv run python
 ```
 
 Run the relevant script within the container:

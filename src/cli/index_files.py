@@ -28,7 +28,7 @@ def fetch_file_index(audio_dir):
         if AUDIO_FILE_REGEX.match(str(file_path)):
             records.append(dict(
                 file_path=str(file_path),
-                uuid=str(uuid.uuid4()),
+                file_id=str(uuid.uuid4()),
                 file_name=file_path.name
             ))
     return pd.DataFrame(records)
@@ -65,12 +65,12 @@ def main(
     if (audio_dir / index_file_name).exists():
         df = load_metadata_file(str(audio_dir / index_file_name))
         if "file_path" not in df.columns:
-            df = fetch_file_index()
+            df = fetch_file_index(audio_dir)
         else:
-            if "uuid" not in df.columns:
-                df["uuid"] = [uuid.uuid4() for i in range(len(df))]
+            if "file_id" not in df.columns:
+                df["file_id"] = [uuid.uuid4() for i in range(len(df))]
     else:
-        df = fetch_file_index()
+        df = fetch_file_index(audio_dir)
 
     df = valid_data(audio_dir, df)
 

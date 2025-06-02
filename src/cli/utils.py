@@ -1,13 +1,14 @@
 import logging
 import pandas as pd
 import soundfile
+from tqdm import tqdm
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 def validate_columns(columns):
     assert "file_path" in columns, "'file_path' column must be specified"
-    assert "uuid" in columns, "'uuid' column specifying a unique ID for each file must be specified"
+    assert "file_id" in columns, "'file_id' column specifying a unique ID for each file must be specified"
 
 def validate_all_audio(file_paths):
     valid_file_paths = []
@@ -27,7 +28,7 @@ def validate_all_audio(file_paths):
 def valid_data(audio_dir, df):
     if (audio_dir / "failed_files.parquet").exists():
         invalid = pd.read_parquet(audio_dir / "failed_files.parquet")
-        return df[~df.uuid.isin(invalid.uuid)]
+        return df[~df.file_id.isin(invalid.file_id)]
 
     valid, invalid = validate_all_audio(df["file_path"])
 
