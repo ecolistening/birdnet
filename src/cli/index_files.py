@@ -47,9 +47,16 @@ def fetch_file_index(audio_dir):
     default="metadata.parquet",
     help='path relative to --audio-dir specifying the location of the saved file index. default: metadata.parquet'
 )
+@click.option(
+    "--num-workers",
+    type=int,
+    default=0,
+    help='Number of CPU cores used during file validation, reverts to synchronous processing if 0 is specified'
+)
 def main(
     audio_dir: pathlib.Path,
     index_file_name: str,
+    num_workers: int,
 ) -> None:
     """
     This command either:
@@ -72,6 +79,6 @@ def main(
     else:
         df = fetch_file_index(audio_dir)
 
-    df = valid_data(audio_dir, df)
+    df = valid_data(audio_dir, df, num_workers=num_workers)
 
     save_metadata_file(df, audio_dir / index_file_name)

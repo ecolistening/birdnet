@@ -17,22 +17,30 @@ from typing import (
     Tuple,
 )
 
+from birdnet_multiprocessing.multiprocessing import run_processing, process_batched, process_sequentially
 from birdnet_multiprocessing.utils import chunked, suppress_output, try_or
 
 __ALL__ = [
-    "species_probs",
-    "species_probs_multiprocessing",
     "embeddings",
+    "species_probs",
+    "embeddings_and_species_probs",
     "embeddings_multiprocessing",
+    "species_probs_multiprocessing",
+    "embeddings_and_species_probs_multiprocessing",
 ]
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+# ------------------------- Main API ------------------------------- #
+
 def species_probs(
     file_path: str,
     **kwargs: Any,
 ) -> pd.DataFrame:
+    """
+    Extract species probabilities for a single file
+    """
     analyzer = Analyzer()
     return _species_probs_as_df(analyzer, file_path, **kwargs)
 
@@ -42,32 +50,31 @@ def species_probs_multiprocessing(
     batch_size: int = 1,
     **kwargs: Any,
 ) -> Iterable[pd.Series]:
+    """
+    Extract species probabilities for all file paths specified in a dataframe
+    """
     total = len(df)
     batched = batch_size > 1
-    sync = num_workers == 0
 
     if batched:
         inputs = list(chunked(df, batch_size))
-        fn = _batch_species_probs_from_audio_files
+        fn = process_batched(_species_probs_as_df)
     else:
         inputs = df.iterrows()
-        fn = _species_probs_from_audio_file
+        fn = process_sequentially(_species_probs_as_df)
 
-    with tqdm(total=total, desc="Analysing...") as pbar:
-        if sync:
-            for results in handle_processing(functools.partial(fn, **kwargs), inputs):
-                yield results
-                pbar.update(batch_size)
-        else:
-            pool_kwargs = dict(processes=num_workers, initializer=_init_worker)
-            for results in handle_multiprocessing(functools.partial(fn, **kwargs), inputs, **pool_kwargs):
-                yield results
-                pbar.update(batch_size)
+    with tqdm(total=total, desc="Detecting species...") as pbar:
+        for results in run_processing(functools.partial(fn, **kwargs), inputs, num_workers=num_workers):
+            yield results
+            pbar.update(batch_size)
 
 def embeddings(
     file_path: str,
     **kwargs: Any,
 ) -> pd.DataFrame:
+    """
+    Embed a single file
+    """
     analyzer = Analyzer()
     return _embed_as_df(analyzer, file_path, **kwargs)
 
@@ -77,32 +84,32 @@ def embeddings_multiprocessing(
     batch_size: int = 1,
     **kwargs: Any,
 ) -> Iterable[pd.Series]:
+    """
+    Embed all file paths specified in a dataframe
+    """
     total = len(df)
     batched = batch_size > 1
     sync = num_workers == 0
 
     if batched:
         inputs = list(chunked(df, batch_size))
-        fn = _batch_embed_audio_files
+        fn = process_batched(_embed_as_df)
     else:
         inputs = df.iterrows()
-        fn = _embed_audio_file
+        fn = process_sequentially(_embed_as_df)
 
-    with tqdm(total=total, desc="Analysing...") as pbar:
-        if sync:
-            for results in handle_processing(functools.partial(fn, **kwargs), inputs):
-                yield results
-                pbar.update(batch_size)
-        else:
-            pool_kwargs = dict(processes=num_workers, initializer=_init_worker)
-            for results in handle_multiprocessing(functools.partial(fn, **kwargs), inputs, **pool_kwargs):
-                yield results
-                pbar.update(batch_size)
+    with tqdm(total=total, desc="Extracting embeddings...") as pbar:
+        for results in run_processing(functools.partial(fn, **kwargs), inputs, num_workers=num_workers):
+            yield results
+            pbar.update(batch_size)
 
 def embeddings_and_species_probs(
     file_path: str,
     **kwargs: Any,
 ) -> pd.DataFrame:
+    """
+    Embed and extract species probabilities for a single file
+    """
     analyzer = Analyzer()
     return _embeddings_and_species_probs_as_df(analyzer, file_path, **kwargs)
 
@@ -112,49 +119,26 @@ def embeddings_and_species_probs_multiprocessing(
     batch_size: int = 1,
     **kwargs: Any,
 ) -> Iterable[pd.Series]:
+    """
+    Embed and extract species probabilities for all file paths in a dataframe
+    """
     total = len(df)
     batched = batch_size > 1
     sync = num_workers == 0
 
     if batched:
         inputs = list(chunked(df, batch_size))
-        fn = _batch_embeddings_and_species_probs_from_audio_files
+        fn = process_batched(_embeddings_and_species_probs_as_df)
     else:
         inputs = df.iterrows()
-        fn = _embeddings_and_species_probs_from_audio_file
+        fn = process_sequentially(_embeddings_and_species_probs_as_df)
 
-    with tqdm(total=total, desc="Analysing...") as pbar:
-        if sync:
-            for results in handle_processing(functools.partial(fn, **kwargs), inputs):
-                yield results
-                pbar.update(batch_size)
-        else:
-            pool_kwargs = dict(processes=num_workers, initializer=_init_worker)
-            for results in handle_multiprocessing(functools.partial(fn, **kwargs), inputs, **pool_kwargs):
-                yield results
-                pbar.update(batch_size)
-
-# --------------------------------------------------------------- #
-
-analyzer = None
-@suppress_output()
-def _init_worker():
-    """
-    Instantiate a single analyzer on each worker, cached globally.
-    """
-    global analyzer
-    analyzer = Analyzer()
-
-def handle_processing(fn: Callable, inputs: Iterable):
-    _init_worker()
-    log.info("Synchronous processing")
-    return map(fn, inputs)
-
-def handle_multiprocessing(fn: Callable, inputs: Iterable, **kwargs: Any):
-    log.info("Concurrent processing")
-    with mp.Pool(**kwargs) as map_pool:
-        for results in map_pool.imap(fn, inputs):
+    with tqdm(total=total, desc="Extracting embeddings and detecting species...") as pbar:
+        for results in run_processing(functools.partial(fn, **kwargs), inputs, num_workers=num_workers):
             yield results
+            pbar.update(batch_size)
+
+# ------------------------- Single Instance Handlers ------------------------------- #
 
 def _species_probs_as_df(
     analyzer: Analyzer,
@@ -175,14 +159,6 @@ def _species_probs_as_df(
     df["file_path"] = str(data.file_path)
     df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
     return df
-
-def _batch_species_probs_from_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
-    return pd.concat([_species_probs_as_df(analyzer, row) for i, row in df.iterrows()], axis=0)
-
-def _species_probs_from_audio_file(item: Tuple[int, pd.Series], **kwargs: Any) -> pd.DataFrame:
-    global analyzer
-    i, row = item
-    return _species_probs_as_df(analyzer, row, **kwargs)
 
 def _embed_as_df(
     analyzer: Analyzer,
@@ -209,14 +185,6 @@ def _embed_as_df(
     df["file_path"] = str(data.file_path)
     df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
     return df
-
-def _batch_embed_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
-    return pd.concat([_embed_as_df(analyzer, row) for i, row in df.iterrows()], axis=0)
-
-def _embed_audio_file(item: Tuple[int, pd.Series], **kwargs: Any) -> pd.DataFrame:
-    global analyzer
-    i, row = item
-    return _embed_as_df(analyzer, row, **kwargs)
 
 def _embeddings_and_species_probs_as_df(
     analyzer: Analyzer,
@@ -269,13 +237,3 @@ def _embeddings_and_species_probs_as_df(
     df["file_path"] = str(data.file_path)
     df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
     return df.reset_index()
-
-def _batch_embeddings_and_species_probs_from_audio_files(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
-    return pd.concat([
-        _embeddings_and_species_probs_as_df(analyzer, row) for i, row in df.iterrows()
-    ], join="outer").fillna(0)
-
-def _embeddings_and_species_probs_from_audio_file(item: Tuple[int, pd.Series], **kwargs: Any) -> pd.DataFrame:
-    global analyzer
-    i, row = item
-    return _embeddings_and_species_probs_as_df(analyzer, row, **kwargs)
