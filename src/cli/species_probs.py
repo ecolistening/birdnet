@@ -10,9 +10,8 @@ import soundfile
 
 from typing import Any
 
-from birdnet_multiprocessing.utils import load_metadata_file, save_metadata_file
-from birdnet_multiprocessing.main import species_probs_multiprocessing
-from cli.utils import valid_data
+from birdnet_multiprocessing import species_probs_multiprocessing
+from cli.utils import load_metadata_file, save_metadata_file, valid_data
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)

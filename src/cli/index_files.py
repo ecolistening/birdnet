@@ -11,7 +11,7 @@ import uuid
 
 from tqdm import tqdm
 
-from cli.utils import valid_data
+from cli.utils import load_metadata_file, save_metadata_file, valid_data
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
