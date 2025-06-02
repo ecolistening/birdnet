@@ -64,7 +64,7 @@ def main(
         when it is not, it defaults to (1), otherwise it appends a UUID
 
     Example:
-        python main.py build_file_index --audio-dir=/path/to/audio/dir --index-file-name=metadata.parquet
+        python main.py index-files --audio-dir=/path/to/audio/dir --index-file-name=metadata.parquet
     """
     if (audio_dir / index_file_name).exists():
         df = load_metadata_file(str(audio_dir / index_file_name))
