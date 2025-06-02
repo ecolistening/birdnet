@@ -2,34 +2,47 @@ BootStrap: docker
 From: python:3.10-slim
 
 %environment
-    export DATA_PATH=/data
     export PATH=/root/.local/bin:$PATH
-    export PYTHONPATH=/code/src
+    export DATA_PATH=/data
+    export PYTHONPATH=/app/src
+    export VIRTUAL_ENV_PATH=/app/.venv
 
 %files
-    uv.lock /code/uv.lock
-    pyproject.toml /code/pyproject.toml
-    src /code/src
-    scripts /code/scripts
-    README.md /code/README.md
+    uv.lock /app/uv.lock
+    pyproject.toml /app/pyproject.toml
+    src /app/src
+    main.py /app/main.py
 
 %post
+    # setup environment
     export PATH=/root/.local/bin:$PATH
-    export PYTHONPATH=/code/src
+    export DATA_PATH=/data
+    export PYTHONPATH=/app/src
+    export VIRTUAL_ENV_PATH=/app/.venv
 
+    # install system dependencies
     apt-get update
     apt-get install --no-install-recommends curl ffmpeg -y
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
+    # install uv for python dependency management
     mkdir /cargo
     curl -LsSf https://astral.sh/uv/install.sh | CARGO_HOME=/cargo sh
     echo "export PATH=/cargo/bin:\$PATH" >> $APPTAINER_ENVIRONMENT
 
-    cd /code
-    UV_PROJECT_ENVIRONMENT=/tmp/.venv uv sync --no-cache
+    # build and change to /app
+    mkdir -p /app
+    cd /app
+
+    # install python dependencies
+    uv venv $VIRTUAL_ENV_PATH
+    . $VIRTUAL_ENV_PATH/bin/activate
+    uv sync --no-cache --link-mode=copy
 
 %runscript
-    cd /code
-    UV_PROJECT_ENVIRONMENT=/tmp/.venv uv --no-cache run "$@"
+    cd /app
+    . $VIRTUAL_ENV_PATH/bin/activate
+    uv --no-cache run "$@"
 
 %labels
     Author Kieran Gibb
