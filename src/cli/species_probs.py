@@ -10,15 +10,13 @@ import soundfile
 
 from typing import Any
 
-from birdnet_multiprocessing import species_probs_multiprocessing
-from cli.utils import load_metadata_file, save_metadata_file, valid_data
+from birdnet_multiprocessing.main import species_probs_multiprocessing
+from cli.utils import load_metadata_file, save_metadata_file, valid_data, validate_columns
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 BIRDNET_INPUT_COLUMNS = ["file_path", "latitude", "longitude", "timestamp"]
-
-__ALL__ = ["species_probs"]
 
 @click.command(
     help="Extract species probabilities using BirdNET"
@@ -89,7 +87,7 @@ def main(
 
     df["file_path"] = df["file_path"].map(lambda file_path: str(audio_dir / file_path))
 
-    df = valid_data(audio_dir, df)
+    df = valid_data(audio_dir, df, num_workers=num_workers)
 
     pending = species_probs_multiprocessing(
         df[df.columns.intersection(BIRDNET_INPUT_COLUMNS)],

@@ -17,7 +17,7 @@ from typing import (
     Tuple,
 )
 
-from birdnet_multiprocessing.multiprocessing import run_processing, process_batched, process_sequentially
+from birdnet_multiprocessing.multiprocessing import run_processing, process_batch, process_file
 from birdnet_multiprocessing.utils import chunked, suppress_output, try_or
 
 __ALL__ = [
@@ -58,10 +58,10 @@ def species_probs_multiprocessing(
 
     if batched:
         inputs = list(chunked(df, batch_size))
-        fn = process_batched(_species_probs_as_df)
+        fn = functools.partial(process_batch, _species_probs_as_df)
     else:
         inputs = df.iterrows()
-        fn = process_sequentially(_species_probs_as_df)
+        fn = functools.partial(process_file, _species_probs_as_df)
 
     with tqdm(total=total, desc="Detecting species...") as pbar:
         for results in run_processing(functools.partial(fn, **kwargs), inputs, num_workers=num_workers):
@@ -93,10 +93,10 @@ def embeddings_multiprocessing(
 
     if batched:
         inputs = list(chunked(df, batch_size))
-        fn = process_batched(_embed_as_df)
+        fn = functools.partial(process_batch, _embed_as_df)
     else:
         inputs = df.iterrows()
-        fn = process_sequentially(_embed_as_df)
+        fn = functools.partial(process_file, _embed_as_df)
 
     with tqdm(total=total, desc="Extracting embeddings...") as pbar:
         for results in run_processing(functools.partial(fn, **kwargs), inputs, num_workers=num_workers):
@@ -128,10 +128,10 @@ def embeddings_and_species_probs_multiprocessing(
 
     if batched:
         inputs = list(chunked(df, batch_size))
-        fn = process_batched(_embeddings_and_species_probs_as_df)
+        fn = functools.partial(process_batch, _embeddings_and_species_probs_as_df)
     else:
         inputs = df.iterrows()
-        fn = process_sequentially(_embeddings_and_species_probs_as_df)
+        fn = functools.partial(process_file, _embeddings_and_species_probs_as_df)
 
     with tqdm(total=total, desc="Extracting embeddings and detecting species...") as pbar:
         for results in run_processing(functools.partial(fn, **kwargs), inputs, num_workers=num_workers):

@@ -1,7 +1,6 @@
 import click
 import os
 import time
-import argparse
 import pathlib
 import logging
 import pandas as pd
@@ -17,8 +16,6 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 AUDIO_FILE_REGEX = re.compile(r".*\.(wav|flac|mp3)$", re.IGNORECASE)
-
-__ALL__ = ["build_file_index"]
 
 def fetch_file_index(audio_dir):
     records = []
@@ -78,6 +75,7 @@ def main(
                 df["file_id"] = [uuid.uuid4() for i in range(len(df))]
     else:
         df = fetch_file_index(audio_dir)
+        assert len(df) > 0, f"No files found in {str(audio_dir)}"
 
     df = valid_data(audio_dir, df, num_workers=num_workers)
 
