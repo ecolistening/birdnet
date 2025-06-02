@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH --job-name=birdnet_species_probs
+#SBATCH --output=birdnet_species_probs_%j.out
+#SBATCH --error=birdnet_species_probs_%j.err
+#SBATCH --mail-user $USER@sussex.ac.uk
+#SBATCH --mail-type=ALL
+#SBATCH --partition short
+
+singularity run app.sif python main.py build-file-index --audio-dir=/data --index-file-name=files.parquet --save-dir=/data
+singularity run app.sif python main.py species-probs --audio-dir=/data --index-file-name=files.parquet --save-dir=/data
