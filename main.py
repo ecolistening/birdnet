@@ -19,7 +19,7 @@ Please read the README for usage instructions
 def cli():
     pass
 
-cli.add_command(build_file_index, name="build_file_index")
+cli.add_command(build_file_index, name="build-file-index")
 cli.add_command(species_probs, name="species-probs")
 cli.add_command(embed, name="embed")
 cli.add_command(embeddings_and_species_probs, name="embeddings-and-species-probs")
