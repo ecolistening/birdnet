@@ -11,3 +11,6 @@ wheels/
 
 # Apptainer Containers
 *.sif
+
+# Slurm logs
+./slurm/logs

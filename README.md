@@ -54,6 +54,8 @@ python main.py embeddings-and-species-probs --audio-dir=/path/to/audio/root/dire
 > **NB**: Embeddings includes all file segments, which may have no species predictions. All species are padded with zero probabilities for files with non-detections
 > Resulting file size may be larger, however this also accounts for species absence in predicted probabilities which can be useful for analyses
 
+Note that the `--batch-size` flag is only for batching audio files for each worker process to handle, within which each files are handled sequentially, rather than batch processing on the GPU. `birdnetlib` does not support batch evaluation on the GPU.
+
 ---
 
 ## Using Singularity
@@ -67,6 +69,19 @@ Run the relevant script within the container:
 singularity run -B /path/to/audio/root/directory:/data app.sif python main.py species-probs --audio-dir=/data --batch-size=6 --save-dir=/data
 ```
 > **NB** If you want a custom save directory, you will need to specify that as a mount point
+
+## Using Slurm
+For computing on a HPC.
+
+- First run the build steps above using singularity.
+- Next create a `.env` file with environment variables as per `.env.template`.
+
+Scripts to append jobs to the queue using environment variables set in `.env` are in `slurm/`.
+
+```sh
+./slurm/species_probs.sh
+./slurm/embed.sh
+```
 
 ---
 
