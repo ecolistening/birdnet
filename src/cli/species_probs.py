@@ -93,7 +93,7 @@ def main(
         df[df.columns.intersection(BIRDNET_INPUT_COLUMNS)],
         num_workers=num_workers,
         batch_size=batch_size,
-        **kwargs
+        **kwargs,
     )
 
     results_df = pd.concat(pending, axis=0).merge(

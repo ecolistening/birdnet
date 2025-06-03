@@ -11,4 +11,4 @@ set -a
 source .env
 set +a
 
-singularity run -B $DATA_DIR:/data app.sif python main.py species-probs --audio-dir=/data --index-file-name=files.parquet --save-dir=/data --num-workers=$NUM_WORKERS --batch-size=$BATCH_SIZE
+singularity run -B $DATA_DIR:/data app.sif python main.py species-probs --audio-dir=/data --index-file-name=files.parquet --save-dir=/data --num-workers=$NUM_WORKERS --batch-size=$BATCH_SIZE --min-conf=$MIN_CONFIDENCE
