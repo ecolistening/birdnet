@@ -54,7 +54,7 @@ BIRDNET_INPUT_COLUMNS = ["file_path", "latitude", "longitude", "timestamp"]
 @click.option(
     "--min-conf",
     required=False,
-    type=int,
+    type=float,
     default=0.5,
     help='BirdNET confidence threshold'
 )
