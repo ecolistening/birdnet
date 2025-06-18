@@ -1,12 +1,13 @@
 [project]
-name = "birdnet_multiprocessing"
+name = "birdnet_dask"
 version = "0.1.0"
-description = "Wrapper around birdnetlib to handle multiprocessing"
+description = "Use Dask to process audio files with BirdNET"
 readme = "README.md"
 requires-python = ">=3.10.13"
 dependencies = [
     "birdnetlib>=0.18.0",
     "click>=8.2.1",
+    "dask[distributed]>=2025.5.1",
     "librosa>=0.11.0",
     "pandas>=2.2.3",
     "pyarrow>=20.0.0",
@@ -17,7 +18,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["birdnet_multiprocessing"]
+packages = ["birdnet_dask"]
 package-dir = {"" = "src"}
 
 [tool.pytest.ini_options]

@@ -1,22 +1,30 @@
 import click
 import os
 import time
-import argparse
 import pathlib
 import logging
 import pandas as pd
-import re
-import soundfile
 
+from dask import config as cfg
+from dask import dataframe as dd
+from dask.distributed import Client
 from typing import Any
 
-from birdnet_multiprocessing.main import embeddings_multiprocessing
-from cli.utils import load_metadata_file, save_metadata_file, valid_data, validate_columns
+from birdnet_dask import embed
+from cli.utils import (
+    load_metadata_file,
+    save_metadata_file,
+    validate_columns,
+)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-BIRDNET_INPUT_COLUMNS = ["file_path", "latitude", "longitude", "timestamp"]
+BIRDNET_EMBEDDING_DIM = 1024
+
+cfg.set({
+    "distributed.scheduler.worker-ttl": None
+})
 
 @click.command(
     help="Embed audio features using BirdNET"
@@ -40,24 +48,45 @@ BIRDNET_INPUT_COLUMNS = ["file_path", "latitude", "longitude", "timestamp"]
     help='/path/to/save/directory'
 )
 @click.option(
-    "--num-workers",
+    "--cores",
     type=int,
     default=os.cpu_count(),
     help='Number of CPU cores, reverts to synchronous processing if 0 is specified'
 )
 @click.option(
-    "--batch-size",
+    "--memory",
+    type=int,
+    default=8,
+    help='Upper bound of memory requirements in GiB'
+)
+@click.option(
+    "--num-partitions",
+    type=int,
+    default=20,
+    help='Number of data partitions'
+)
+@click.option(
+    "--local-threads",
     type=int,
     default=1,
-    help='Batch size (audio files per worker)'
+    help="",
+)
+@click.option(
+    "--debug",
+    type=bool,
+    is_flag=True,
+    default=False,
+    help="Set synchronous for debugging",
 )
 def main(
     audio_dir: pathlib.Path,
     index_file_name: str,
     save_dir: pathlib.Path,
-    num_workers: int,
-    batch_size: int,
-    **kwargs: Any,
+    cores: int,
+    memory: int,
+    num_partitions: int,
+    local_threads: int,
+    debug: bool,
 ) -> None:
     """
     This command extracts BirdNET model embeddings from audio files referenced in
@@ -72,31 +101,36 @@ def main(
     start_time = time.time()
 
     df = load_metadata_file(str(audio_dir / index_file_name))
-
     validate_columns(df.columns)
-
     df["file_path"] = df["file_path"].map(lambda file_path: str(audio_dir / file_path))
 
-    df = valid_data(audio_dir, df, num_workers=num_workers)
-
-    pending = embeddings_multiprocessing(
-        df[df.columns.intersection(BIRDNET_INPUT_COLUMNS)],
-        num_workers=num_workers,
-        batch_size=batch_size,
-        **kwargs
-    )
-
-    results_df = pd.concat(pending, axis=0).merge(
-        df[["file_id", "file_path"]],
-        left_on="file_path",
-        right_on="file_path",
-        how="left",
-    )
-
-    model_version = results_df.loc[0, "model"]
     save_dir.mkdir(exist_ok=True, parents=True)
-    results_df.to_parquet(save_dir / f"{model_version}_embeddings.parquet")
+
+    if debug:
+        cfg.set(scheduler='synchronous')
+
+    client = Client(
+        n_workers=cores,
+        threads_per_worker=local_threads,
+        memory_limit=f'{memory}GiB',
+    )
+    log.info(client)
+
+    ddf = dd.from_pandas(df, npartitions=num_partitions)
+    results_ddf = ddf.map_partitions(
+        embed,
+        meta=pd.DataFrame({
+            **{ dim: pd.Series(dtype="float64") for dim in map(str, range(BIRDNET_EMBEDDING_DIM)) },
+            "start_time": pd.Series(dtype="float64"),
+            "end_time": pd.Series(dtype="float64"),
+            "path": pd.Series(dtype="object"),
+            "file": pd.Series(dtype="object"),
+            "model": pd.Series(dtype="object"),
+        })
+    )
+
+    results_ddf.to_parquet(save_dir / f"birdnet_embeddings.parquet", write_index=True)
+
+    client.close()
 
     log.info(f'Time taken: {time.time() - start_time} seconds')
-
-
