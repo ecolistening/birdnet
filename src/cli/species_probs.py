@@ -107,10 +107,9 @@ def main(
     Note: Only persists species detections, does not contain references to
           files where no species were detected
     """
+    df = pd.read_parquet(str(audio_dir / index_file_name))
 
-    df = load_metadata_file(str(audio_dir / index_file_name))
     validate_columns(df.columns)
-    df["file_path"] = df["file_path"].map(lambda file_path: str(audio_dir / file_path))
 
     save_dir.mkdir(exist_ok=True, parents=True)
 
@@ -124,6 +123,7 @@ def main(
         threads_per_worker=local_threads,
         memory_limit=f'{memory}GiB',
     )
+
     log.info(client)
 
     ddf = dd.from_pandas(df, npartitions=num_partitions)
@@ -146,6 +146,6 @@ def main(
 
     results_ddf.to_parquet(save_dir / f"birdnet_species_probs.parquet", write_index=True)
 
-    client.close()
-
     log.info(f'Time taken: {time.time() - start_time} seconds')
+
+    client.close()
