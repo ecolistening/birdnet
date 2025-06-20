@@ -10,12 +10,8 @@ from dask import dataframe as dd
 from dask.distributed import Client
 from typing import Any
 
-from birdnet_dask import species_probs
-from cli.utils import (
-    load_metadata_file,
-    save_metadata_file,
-    validate_columns,
-)
+from birdnet_dask import species_probs, species_probs_meta
+from cli.utils import validate_columns
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -67,7 +63,7 @@ cfg.set({
 @click.option(
     "--num-partitions",
     type=int,
-    default=20,
+    default=None,
     help='Number of data partitions'
 )
 @click.option(
@@ -90,7 +86,7 @@ def main(
     min_conf: float,
     cores: int,
     memory: int,
-    num_partitions: int,
+    num_partitions: int | None,
     local_threads: int,
     debug: bool,
 ) -> None:
@@ -130,22 +126,9 @@ def main(
     results_ddf = ddf.map_partitions(
         species_probs,
         min_conf=min_conf,
-        meta=pd.DataFrame({
-            "common_name": pd.Series(dtype="object"),
-            "scientific_name": pd.Series(dtype="object"),
-            "start_time": pd.Series(dtype="float64"),
-            "end_time": pd.Series(dtype="float64"),
-            "confidence": pd.Series(dtype="float64"),
-            "label": pd.Series(dtype="object"),
-            "path": pd.Series(dtype="object"),
-            "file": pd.Series(dtype="object"),
-            "min_conf": pd.Series(dtype="float64"),
-            "model": pd.Series(dtype="object"),
-        })
+        meta=species_probs_meta()
     )
 
     results_ddf.to_parquet(save_dir / f"birdnet_species_probs.parquet", write_index=True)
 
     log.info(f'Time taken: {time.time() - start_time} seconds')
-
-    client.close()

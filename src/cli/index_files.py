@@ -94,5 +94,3 @@ def main(
 
     df = ddf.compute()
     df.to_parquet(audio_dir / index_file_name)
-
-    client.close()

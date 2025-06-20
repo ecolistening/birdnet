@@ -10,17 +10,11 @@ from dask import dataframe as dd
 from dask.distributed import Client
 from typing import Any
 
-from birdnet_dask import embed
-from cli.utils import (
-    load_metadata_file,
-    save_metadata_file,
-    validate_columns,
-)
+from birdnet_dask import embed, embed_meta
+from cli.utils import validate_columns
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
-
-BIRDNET_EMBEDDING_DIM = 1024
 
 cfg.set({
     "distributed.scheduler.worker-ttl": None
@@ -62,7 +56,7 @@ cfg.set({
 @click.option(
     "--num-partitions",
     type=int,
-    default=20,
+    default=None,
     help='Number of data partitions'
 )
 @click.option(
@@ -84,7 +78,7 @@ def main(
     save_dir: pathlib.Path,
     cores: int,
     memory: int,
-    num_partitions: int,
+    num_partitions: int | None,
     local_threads: int,
     debug: bool,
 ) -> None:
@@ -120,14 +114,7 @@ def main(
     ddf = dd.from_pandas(df, npartitions=num_partitions)
     results_ddf = ddf.map_partitions(
         embed,
-        meta=pd.DataFrame({
-            **{ dim: pd.Series(dtype="float64") for dim in map(str, range(BIRDNET_EMBEDDING_DIM)) },
-            "start_time": pd.Series(dtype="float64"),
-            "end_time": pd.Series(dtype="float64"),
-            "path": pd.Series(dtype="object"),
-            "file": pd.Series(dtype="object"),
-            "model": pd.Series(dtype="object"),
-        })
+        meta=embed_meta(),
     )
 
     results_ddf.to_parquet(save_dir / f"birdnet_embeddings.parquet", write_index=True)

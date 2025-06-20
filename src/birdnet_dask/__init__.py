@@ -29,6 +29,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 AUDIO_FILE_REGEX = re.compile(r".*\.(wav|flac|mp3)$", re.IGNORECASE)
+BIRDNET_EMBEDDING_DIM = 1024
 
 def list_audio_files(audio_dir):
     return [
@@ -44,6 +45,30 @@ def valid_audio_file(metadata: Dict[str, str]):
     except soundfile.LibsndfileError as e:
         log.warning(e)
         return False
+
+def species_probs_meta():
+    return pd.DataFrame({
+        "path": pd.Series(dtype="object"),
+        "file": pd.Series(dtype="object"),
+        "min_conf": pd.Series(dtype="float64"),
+        "model": pd.Series(dtype="object"),
+        "common_name": pd.Series(dtype="object"),
+        "scientific_name": pd.Series(dtype="object"),
+        "label": pd.Series(dtype="object"),
+        "start_time": pd.Series(dtype="float64"),
+        "end_time": pd.Series(dtype="float64"),
+        "confidence": pd.Series(dtype="float64"),
+    })
+
+def embed_meta():
+    return pd.DataFrame({
+        "path": pd.Series(dtype="object"),
+        "file": pd.Series(dtype="object"),
+        "model": pd.Series(dtype="object"),
+        "start_time": pd.Series(dtype="float64"),
+        "end_time": pd.Series(dtype="float64"),
+        **{ dim: pd.Series(dtype="float64") for dim in map(str, range(BIRDNET_EMBEDDING_DIM)) },
+    })
 
 def species_probs(
     df: pd.DataFrame,
@@ -75,7 +100,7 @@ def _species_probs_as_df(
 ) -> pd.DataFrame:
     recording = Recording(
         analyzer,
-        metadata.file_path,
+        metadata.path,
         lat=metadata.get("latitude"),
         lon=metadata.get("longitude"),
         date=ts.date() if pd.notnull(ts := metadata.get("timestamp")) else None,
@@ -85,12 +110,16 @@ def _species_probs_as_df(
 
     recording.analyze()
 
-    df = pd.DataFrame(recording.detections)
-    df["path"] = metadata.file_path
-    df["file"] = pathlib.Path(metadata.file_path).name
-    df["min_conf"] = min_conf
-    df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
-    return df
+    template_df = species_probs_meta()
+    if not len(recording.detections):
+        return template_df
+    else:
+        df = pd.DataFrame(recording.detections)
+        df["path"] = metadata.path
+        df["file"] = pathlib.Path(metadata.path).name
+        df["min_conf"] = min_conf
+        df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
+        return df[template_df.columns]
 
 @suppress_output()
 def _embed_as_df(
@@ -100,7 +129,7 @@ def _embed_as_df(
 ) -> pd.DataFrame:
     recording = Recording(
         analyzer,
-        str(metadata.file_path),
+        str(metadata.path),
         lat=metadata.get("latitude"),
         lon=metadata.get("longitude"),
         date=ts.date() if pd.notnull(ts := metadata.get("timestamp")) else None,
@@ -116,7 +145,7 @@ def _embed_as_df(
         ])
         for embedding_info in recording.embeddings
     ])
-    df["path"] = str(metadata.file_path)
-    df["file"] = pathlib.Path(metadata.file_path).name
+    df["path"] = str(metadata.path)
+    df["file"] = pathlib.Path(metadata.path).name
     df["model"] = f"BirdNET_GLOBAL_6K_V{analyzer.version}"
-    return df
+    return df[embed_meta().columns]
