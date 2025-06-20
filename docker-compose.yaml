@@ -1,0 +1,10 @@
+services:
+  pipeline:
+    container_name: birdnet_dask
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /media/data0/nature_sense_mini/Raw_Data/:/data
+    tty: true
+    stdin_open: true
